@@ -137,7 +137,9 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
 .approval-status { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: var(--radius); letter-spacing: 0.5px; }
 .approval-status.pending { background: var(--warn-light); color: var(--warn); border: 1px solid var(--warn); }
 .approval-status.accepted { background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent); }
-.approval-status.rejected { background: var(--red-light); color: var(--red); border: 1px solid var(--red); }
+.badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: var(--bg3); color: var(--text3); text-transform: uppercase; border: 1px solid var(--border2); }
+.badge.success { background: #e8f4f0; color: #2d5a4e; border-color: #2d5a4e; }
+
 .dash-grid { display: flex; flex-direction: column; gap: 8px; }
 .dash-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px; cursor: pointer; transition: all 0.15s; }
 .dash-card:hover { border-color: var(--accent); background: var(--accent-light); }

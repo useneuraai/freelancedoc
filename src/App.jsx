@@ -130,6 +130,9 @@ function App() {
           if (isClientMode) {
             // No extra toast needed for client usually
           } else {
+            // Refresh the sidebar list for freelancer
+            fetchAgreements();
+            
             if (payload.new.status === 'accepted') {
               addToast('🎉 Client just accepted the agreement!');
             }
