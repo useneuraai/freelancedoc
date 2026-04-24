@@ -35,189 +35,135 @@ const Preview = ({
           {watermark.show && <div className="watermark">{watermark.text}</div>}
           
           <div className="doc-header">
-            <div>
-              <div className="doc-title">SERVICE AGREEMENT</div>
-              <div className="doc-meta">Agreement ID: {agreementId}</div>
+            <div className="doc-title">SERVICE AGREEMENT</div>
+            <div className="doc-subtitle">Agreement ID: {agreementId} · {dateStr}</div>
+          </div>
+
+          <div className="doc-meta-grid">
+            <div className="doc-meta-item">
+              <div className="meta-label">Service Provider</div>
+              <div className="meta-value">{formData.freelancerName || '[Your Name]'}</div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '12px', color: 'var(--text3)' }}>Dated</div>
-              <div style={{ fontWeight: 600 }}>{dateStr}</div>
+            <div className="doc-meta-item">
+              <div className="meta-label">Client</div>
+              <div className="meta-value">{formData.clientName || '[Client Name]'}</div>
             </div>
           </div>
 
-          <div className="doc-intro">
-            This Service Agreement ("Agreement") is made and entered into on <strong>{dateStr}</strong> by and between:
+          <div className="doc-section">
+            <div className="doc-section-title">1. Project Summary</div>
+            <p>The Client hereby engages the Service Provider to perform the following services: <strong>{formData.projectTitle || '[Project Title]'}</strong>.</p>
+            <p>{formData.projectDesc}</p>
           </div>
-
-          <div className="parties-grid">
-            <div className="party-card">
-              <div className="party-label">THE SERVICE PROVIDER</div>
-              <div className="party-name">{formData.freelancerName || '[Your Name]'}</div>
-              <div className="party-sub">Independent Freelancer</div>
-            </div>
-            <div className="party-card">
-              <div className="party-label">THE CLIENT</div>
-              <div className="party-name">{formData.clientName || '[Client Name]'}</div>
-              <div className="party-sub">{formData.clientEmail || '—'}</div>
-            </div>
-          </div>
-
-          {sectionTitle(1, 'PROJECT SUMMARY')}
-          <p>The Client hereby engages the Service Provider to perform the following services: <strong>{formData.projectTitle || '[Project Title]'}</strong>. 
-          The work falls under the category of <strong>{formData.areaOfWork}</strong>.</p>
-          <p style={{ marginTop: '10px' }}>{formData.projectDesc}</p>
 
           {toggles.components && formData.components && (
-            <>
-              {sectionTitle(2, 'KEY COMPONENTS / TECHNOLOGIES')}
-              <p>The project will utilize the following components and technologies: {formData.components}.</p>
-            </>
+            <div className="doc-section">
+              <div className="doc-section-title">2. Components & Technologies</div>
+              <p>{formData.components}</p>
+            </div>
           )}
 
-          {toggles.scope && (
-            <>
-              {sectionTitle(toggles.components ? 3 : 2, 'DETAILED SCOPE OF WORK')}
-              <ul className="scope-list-doc">
-                {formData.scopeItems?.map((s, i) => <li key={i}>{s}</li>)}
+          {toggles.scope && formData.scopeItems && formData.scopeItems.length > 0 && (
+            <div className="doc-section">
+              <div className="doc-section-title">{toggles.components ? '3' : '2'}. Scope of Work</div>
+              <ul>
+                {formData.scopeItems.map((item, idx) => (
+                  <li key={idx}>{item}</li>
+                ))}
               </ul>
-            </>
-          )}
-
-          {toggles.client && (
-            <>
-              {sectionTitle(4, 'CLIENT RESPONSIBILITIES')}
-              <p>{formData.clientResponsibilities || 'Client shall provide necessary feedback, approvals, and any specific assets required for the project in a timely manner.'}</p>
-            </>
+            </div>
           )}
 
           {toggles.payment && (
-            <>
-              {sectionTitle(5, 'PAYMENT TERMS')}
-              <p>The total project cost is <strong>{currency}{total.toLocaleString('en-IN')}</strong> {gstPct > 0 ? `(plus ${gstPct}% GST of ${currency}${gst.toLocaleString('en-IN')})` : ''}, 
-              amounting to a grand total of <strong>{currency}{grand.toLocaleString('en-IN')}</strong>.</p>
-              
-              <div className="payment-table">
-                <div className="payment-row">
-                  <span>Advance Payment ({advPct}%)</span>
-                  <strong>{currency}{adv.toLocaleString('en-IN')}</strong>
-                </div>
-                <div className="payment-row">
-                  <span>Balance Payment ({100 - advPct}%)</span>
-                  <strong>{currency}{(total - adv).toLocaleString('en-IN')}</strong>
-                </div>
-              </div>
-              <p style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text2)' }}>{formData.paymentTerms || 'Advance payment is required before project commencement. Balance payment is due upon successful project delivery.'}</p>
-            </>
+            <div className="doc-section">
+              <div className="doc-section-title">Payment Terms</div>
+              <p>The total cost for the services is <strong>{currency}{total.toLocaleString('en-IN')}</strong> {gstPct > 0 ? `(+ ${gstPct}% GST)` : ''}.</p>
+              <table className="payment-table">
+                <thead>
+                  <tr>
+                    <th>Milestone</th>
+                    <th>Percentage</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Advance Payment</td>
+                    <td>{advPct}%</td>
+                    <td>{currency}{adv.toLocaleString('en-IN')}</td>
+                  </tr>
+                  <tr>
+                    <td>Final Balance</td>
+                    <td>{100 - advPct}%</td>
+                    <td>{currency}{(total - adv).toLocaleString('en-IN')}</td>
+                  </tr>
+                  <tr>
+                    <td>Total Payable</td>
+                    <td>100%</td>
+                    <td>{currency}{grand.toLocaleString('en-IN')}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style={{ fontSize: '11px', marginTop: '8px' }}>{formData.paymentTerms || 'Payment shall be made via UPI or bank transfer as per the details provided.'}</p>
+            </div>
           )}
 
-          {sectionTitle(6, 'TIMELINE & DELIVERY')}
-          <p>The project is estimated to be completed within <strong>{formData.timeline || '___'} business days</strong> from the date of receipt of the advance payment.</p>
-          <p>Delivery Method: {formData.deliveryMethod}.</p>
-          <p>Revisions: The Service Provider includes <strong>{formData.revisions || '0'} rounds of revisions</strong>. Further changes may be subject to additional charges.</p>
-
-          {toggles.ip && (
-            <>
-              {sectionTitle(7, 'INTELLECTUAL PROPERTY')}
-              <p>Upon full and final payment, the ownership and intellectual property rights of the final deliverables shall be transferred to the Client. The Service Provider retains the right to showcase the work in their portfolio.</p>
-            </>
-          )}
-
-          {toggles.nda && (
-            <>
-              {sectionTitle(8, 'CONFIDENTIALITY')}
-              <p>Both parties agree to maintain the confidentiality of any proprietary information shared during the course of this project.</p>
-            </>
-          )}
+          <div className="doc-section">
+            <div className="doc-section-title">Timeline & Delivery</div>
+            <p>Projected Timeline: <strong>{formData.timeline} business days</strong> from advance receipt.</p>
+            <p>Delivery Method: {formData.deliveryMethod}</p>
+            <p>Revisions: {formData.revisions} rounds included.</p>
+          </div>
 
           {toggles.warranty && (
-            <>
-              {sectionTitle(9, 'WARRANTY & SUPPORT')}
-              <p>{formData.warranty || 'The Service Provider provides a standard 30-day bug-fix warranty from the date of delivery.'}</p>
-            </>
+            <div className="doc-section">
+              <div className="doc-section-title">Warranty & Support</div>
+              <p>{formData.warranty || '30 days of technical support following final delivery.'}</p>
+            </div>
+          )}
+
+          {toggles.ip && (
+            <div className="doc-section">
+              <div className="doc-section-title">Intellectual Property</div>
+              <p>Upon full payment, the ownership of the final deliverables shall be transferred to the Client. The Service Provider retains the right to include the work in their portfolio.</p>
+            </div>
           )}
 
           {toggles.liability && (
-            <>
-              {sectionTitle(10, 'LIMITATION OF LIABILITY')}
-              <p>The Service Provider shall not be liable for any indirect, incidental, or consequential damages. Total liability is limited to the amount paid under this Agreement.</p>
-            </>
-          )}
-
-          {toggles.cancellation && (
-            <>
-              {sectionTitle(11, 'TERMINATION')}
-              <p>{formData.cancellation || 'Either party may terminate the Agreement with 7 days written notice. The Client shall pay for work completed up to the date of termination. Advance payments are non-refundable.'}</p>
-            </>
-          )}
-
-          {toggles.dispute && (
-            <>
-              {sectionTitle(12, 'GOVERNING LAW')}
-              <p>This Agreement shall be governed by and construed in accordance with the laws applicable in India. Any disputes shall be subject to the exclusive jurisdiction of the courts in the Service Provider's location.</p>
-            </>
+            <div className="doc-section">
+              <div className="doc-section-title">Limitation of Liability</div>
+              <p>The Service Provider's total liability under this agreement is limited to the total amount paid by the Client.</p>
+            </div>
           )}
 
           {formData.additionalNotes && (
-            <>
-              {sectionTitle(13, 'ADDITIONAL PROVISIONS')}
+            <div className="doc-section">
+              <div className="doc-section-title">Additional Provisions</div>
               <p>{formData.additionalNotes}</p>
-            </>
+            </div>
           )}
 
-          <div className="doc-footer">
-            <p>This is a digitally generated service agreement. By signing below or accepting electronically, both parties agree to the terms and conditions outlined above.</p>
-          </div>
-
-          <div className="signature-section">
-            <div className="sig-box">
-              <div className="sig-label">FOR THE SERVICE PROVIDER</div>
-              <div className="sig-space">
+          <div className="signature-row">
+            <div className="signature-block">
+              <div className="signature-label">Service Provider</div>
+              <div className="signature-area">
                 <div className="signature-typed">{formData.freelancerName}</div>
-                <div className="sig-meta">Independent Freelancer</div>
                 <div className="sig-meta">Date: {dateStr}</div>
               </div>
             </div>
-            <div className="sig-box">
-              <div className="sig-label">FOR THE CLIENT</div>
-              <div className="sig-space">
+            <div className="signature-block">
+              <div className="signature-label">Client Approval</div>
+              <div className="signature-area">
                 {approvalStatus === 'accepted' ? (
-                  <div className="accepted-badge">
-                    <div className="badge-main">ACCEPTED & SIGNED</div>
-                    <div className="badge-sub">Signed electronically · {signedDate || dateStr}</div>
+                  <div style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                    <div style={{ fontSize: '18px' }}>✓ ACCEPTED & SIGNED</div>
+                    <div className="sig-meta">Signed on {signedDate || dateStr}</div>
                   </div>
                 ) : (
                   <>
-                    {sigMode === 'type' && (
-                      <>
-                        <div className="signature-typed" style={{ color: 'var(--text3)' }}>{formData.clientName || '_______________'}</div>
-                        <div className="sig-meta">Date: _______________</div>
-                      </>
-                    )}
-                    {sigMode === 'draw' && (
-                      <div style={{ position: 'relative' }}>
-                        <canvas 
-                          ref={canvasRef} 
-                          width="300" 
-                          height="100" 
-                          style={{ borderBottom: '1px solid var(--border)', cursor: 'crosshair', touchAction: 'none' }}
-                          onMouseDown={startDrawing}
-                          onMouseMove={draw}
-                          onMouseUp={stopDrawing}
-                          onMouseLeave={stopDrawing}
-                          onTouchStart={startDrawing}
-                          onTouchMove={draw}
-                          onTouchEnd={stopDrawing}
-                        />
-                        <button className="rm-btn" onClick={clearCanvas} style={{ position: 'absolute', right: 0, top: 0, scale: '0.7' }}>✕</button>
-                        <div className="sig-meta">Date: _______________</div>
-                      </div>
-                    )}
-                    {sigMode === 'placeholder' && (
-                      <>
-                        <div style={{ borderBottom: '1px solid var(--border)', minHeight: '45px', padding: '8px 0', fontSize: '12px', color: 'var(--text3)' }}>Signature: _______________</div>
-                        <div className="sig-meta">Date: _______________</div>
-                      </>
-                    )}
+                    {sigMode === 'type' && <div className="signature-typed" style={{ opacity: 0.3 }}>{formData.clientName || 'Sign here'}</div>}
+                    {sigMode === 'draw' && <div style={{ height: '40px', borderBottom: '1px dashed var(--border)', marginBottom: '5px' }}></div>}
+                    <div className="sig-meta">Pending electronic signature</div>
                   </>
                 )}
               </div>

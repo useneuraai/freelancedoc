@@ -294,6 +294,14 @@ function App() {
     addToast('Starting fresh agreement');
   };
 
+  const sendToClient = () => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}#/agreement/${agreementId}`;
+    const subject = encodeURIComponent(`Service Agreement: ${formData.projectTitle}`);
+    const body = encodeURIComponent(`Hello ${formData.clientName || 'Client'},\n\nPlease review and accept the service agreement for ${formData.projectTitle} here:\n${shareUrl}\n\nRegards,\n${formData.freelancerName}`);
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${formData.clientEmail}&su=${subject}&body=${body}`, '_blank');
+    addToast('Opening Gmail Draft...');
+  };
+
   const exportPDF = () => {
     const doc = new jsPDF('p', 'pt', 'a4');
     const element = document.getElementById('agreementDoc');
@@ -400,6 +408,7 @@ function App() {
               <button className="btn no-print" onClick={() => window.print()}>🖨 Print</button>
               <button className="btn no-print" onClick={exportPDF}>⬇ PDF</button>
               <button className="btn btn-primary no-print" onClick={saveAgreement}>💾 Save</button>
+              <button className="btn btn-gold no-print" onClick={sendToClient}>📧 Send to Client</button>
               {user && <button className="btn btn-danger no-print" onClick={handleLogout} title={`Logged in as ${user.email}`}>🚪 Logout</button>}
             </div>
           </div>
