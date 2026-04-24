@@ -53,24 +53,24 @@ function App() {
       if (draft) return JSON.parse(draft).formData;
     } catch (e) {}
     return {
-      freelancerName: 'Michael Justus W',
+      freelancerName: '',
       clientName: '',
       clientEmail: '',
-      freelancerUpi: 'michael@okaxis',
-      projectTitle: 'Collision Detection Device',
-      areaOfWork: 'Electronics & Embedded Systems',
-      projectDesc: 'Design and development of an embedded collision detection device using IR and ultrasonic sensors interfaced with an ESP32 microcontroller, including firmware programming and field testing.',
-      components: 'IR sensor, Ultrasonic sensor, ESP32, PCB',
-      clientResponsibilities: 'Provide clear project requirements and timely feedback at each milestone. Ensure access to testing environment within 48 hours of delivery.',
-      totalCost: '4500',
+      freelancerUpi: '',
+      projectTitle: '',
+      areaOfWork: '',
+      projectDesc: '',
+      components: '',
+      clientResponsibilities: '',
+      totalCost: '',
       advancePct: '50',
       gstPct: '18',
-      paymentTerms: 'Advance before commencement. Balance upon delivery. Payments via bank transfer or UPI only.',
-      deliveryMethod: 'Courier',
-      timeline: '21',
-      revisions: '2',
-      warranty: '30 days from delivery',
-      cancellation: 'Advance payment is non-refundable after work commences. Written notice required 48 hours prior to cancellation.',
+      paymentTerms: '',
+      deliveryMethod: '',
+      timeline: '',
+      revisions: '',
+      warranty: '',
+      cancellation: '',
       additionalNotes: ''
     };
   });
@@ -80,13 +80,7 @@ function App() {
       const draft = localStorage.getItem('fd_draft');
       if (draft) return JSON.parse(draft).scopeItems;
     } catch (e) {}
-    return [
-      'Circuit schematic design and component selection',
-      'Firmware programming on ESP32 (sensor interfacing)',
-      'PCB layout and fabrication coordination',
-      'Field testing, calibration, and performance validation',
-      'Delivery with technical documentation'
-    ];
+    return [];
   });
 
   const [toggles, setToggles] = useState({
