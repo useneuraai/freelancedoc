@@ -190,10 +190,10 @@ const Preview = ({
               <div className="signature-label">Client Approval</div>
               <div className="signature-area">
                 {approvalStatus === 'accepted' ? (
-                  <div style={{ color: 'var(--accent)', fontWeight: 700 }}>
-                    <div style={{ fontSize: '18px' }}>✓ ACCEPTED & SIGNED</div>
-                    <div className="sig-meta">Signed on {signedDate || dateStr}</div>
-                  </div>
+                  <>
+                    <div className="signature-typed">{formData.clientName}</div>
+                    <div className="sig-meta">Digitally signed on {signedDate || dateStr}</div>
+                  </>
                 ) : (
                   <>
                     {sigMode === 'type' && <div className="signature-typed" style={{ opacity: 0.3 }}>{formData.clientName || 'Sign here'}</div>}

@@ -124,9 +124,15 @@ function App() {
           table: 'agreements',
           filter: `agreement_id=eq.${agreementId}`
         }, (payload) => {
-          // If I'm the client, update my view immediately when freelancer saves
+          // Update view immediately for both freelancer and client
+          loadAgreementFromData(payload.new);
+          
           if (isClientMode) {
-            loadAgreementFromData(payload.new);
+            // No extra toast needed for client usually
+          } else {
+            if (payload.new.status === 'accepted') {
+              addToast('🎉 Client just accepted the agreement!');
+            }
           }
         })
         .subscribe();
