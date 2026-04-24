@@ -113,6 +113,30 @@ function App() {
     }
   }, []);
 
+  // REALTIME SYNC: Listen for updates to this specific agreement
+  useEffect(() => {
+    if (agreementId) {
+      const channel = supabase
+        .channel(`agreement-${agreementId}`)
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'agreements',
+          filter: `agreement_id=eq.${agreementId}`
+        }, (payload) => {
+          // If I'm the client, update my view immediately when freelancer saves
+          if (isClientMode) {
+            loadAgreementFromData(payload.new);
+          }
+        })
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [agreementId, isClientMode]);
+
   useEffect(() => {
     if (!isClientMode) {
       localStorage.setItem('fd_draft', JSON.stringify({ formData, scopeItems, agreementId }));
@@ -231,9 +255,12 @@ function App() {
     status: d.status
   });
 
-  const saveAgreement = async () => {
-    if (!user) return addToast('Please login to save to cloud');
-    addToast('Saving to cloud...');
+  const saveAgreement = async (silent = false) => {
+    if (!user) {
+      if (!silent) addToast('Please login to save to cloud');
+      return false;
+    }
+    if (!silent) addToast('Saving to cloud...');
     const dbData = {
       agreement_id: agreementId,
       user_id: user.id,
@@ -254,14 +281,16 @@ function App() {
     };
     const { error } = await supabase.from('agreements').upsert(dbData, { onConflict: 'agreement_id' });
     if (!error) {
-      addToast('💾 Saved to Supabase');
+      if (!silent) addToast('💾 Saved to Supabase');
       if (user) {
         await supabase.from('profiles').upsert({ id: user.id, freelancer_name: formData.freelancerName, freelancer_upi: formData.freelancerUpi, updated_at: new Date().toISOString() });
       }
       bumpVersion('Cloud Saved');
       fetchAgreements();
+      return true;
     } else {
-      addToast('✕ Save failed: ' + error.message);
+      if (!silent) addToast('✕ Save failed: ' + error.message);
+      return false;
     }
   };
 
@@ -294,12 +323,20 @@ function App() {
     addToast('Starting fresh agreement');
   };
 
-  const sendToClient = () => {
+  const sendToClient = async () => {
+    // 1. Auto-save current state to cloud first
+    const saved = await saveAgreement(true);
+    if (!saved) {
+      addToast('⚠ Save failed. Check connection before sending.');
+      return;
+    }
+
+    // 2. Open Gmail with latest data
     const shareUrl = `${window.location.origin}${window.location.pathname}#/agreement/${agreementId}`;
     const subject = encodeURIComponent(`Service Agreement: ${formData.projectTitle}`);
     const body = encodeURIComponent(`Hello ${formData.clientName || 'Client'},\n\nPlease review and accept the service agreement for ${formData.projectTitle} here:\n${shareUrl}\n\nRegards,\n${formData.freelancerName}`);
     window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${formData.clientEmail}&su=${subject}&body=${body}`, '_blank');
-    addToast('Opening Gmail Draft...');
+    addToast('✓ Saved & Opened Gmail');
   };
 
   const exportPDF = () => {
@@ -387,7 +424,7 @@ function App() {
   }
 
   return (
-    <div data-theme={theme}>
+    <div data-theme={theme} className={isClientMode ? 'client-mode' : ''}>
       {!user && !isClientMode ? (
         <Auth 
           handleLogin={handleLogin}
@@ -397,36 +434,48 @@ function App() {
         />
       ) : (
         <>
-          <div className="topbar">
-            <div className="logo">FreelanceDoc <span>Agreement Generator</span></div>
-            <div className="topbar-actions">
-              <select className="currency-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="₹">₹ INR</option><option value="$">$ USD</option><option value="€">€ EUR</option><option value="£">£ GBP</option>
-              </select>
-              <button className="btn" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>{theme === 'light' ? '🌙 Dark' : '☀ Light'}</button>
-              <button className="btn btn-gold no-print" onClick={() => setIsInvoiceModalOpen(true)}>📄 Invoice</button>
-              <button className="btn no-print" onClick={() => window.print()}>🖨 Print</button>
-              <button className="btn no-print" onClick={exportPDF}>⬇ PDF</button>
-              <button className="btn btn-primary no-print" onClick={saveAgreement}>💾 Save</button>
-              <button className="btn btn-gold no-print" onClick={sendToClient}>📧 Send to Client</button>
-              {user && <button className="btn btn-danger no-print" onClick={handleLogout} title={`Logged in as ${user.email}`}>🚪 Logout</button>}
+          {isClientMode ? (
+            <div className="client-view-header no-print">
+              <div className="logo">FreelanceDoc</div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn" onClick={exportPDF}>⬇ Download PDF</button>
+                <div className="badge">{approvalStatus}</div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="topbar">
+              <div className="logo">FreelanceDoc <span>Agreement Generator</span></div>
+              <div className="topbar-actions">
+                <select className="currency-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                  <option value="₹">₹ INR</option><option value="$">$ USD</option><option value="€">€ EUR</option><option value="£">£ GBP</option>
+                </select>
+                <button className="btn" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>{theme === 'light' ? '🌙 Dark' : '☀ Light'}</button>
+                <button className="btn btn-gold no-print" onClick={() => setIsInvoiceModalOpen(true)}>📄 Invoice</button>
+                <button className="btn no-print" onClick={() => window.print()}>🖨 Print</button>
+                <button className="btn no-print" onClick={exportPDF}>⬇ PDF</button>
+                <button className="btn btn-primary no-print" onClick={saveAgreement}>💾 Save</button>
+                <button className="btn btn-gold no-print" onClick={sendToClient}>📧 Send to Client</button>
+                {user && <button className="btn btn-danger no-print" onClick={handleLogout} title={`Logged in as ${user.email}`}>🚪 Logout</button>}
+              </div>
+            </div>
+          )}
 
           <div className="app-layout">
-            <Sidebar 
-              activeTab={activeTab} setActiveTab={setActiveTab}
-              formData={formData} handleInputChange={handleInputChange}
-              scopeItems={scopeItems} updateScopeItem={updateScopeItem} removeScopeItem={removeScopeItem} addScopeItem={addScopeItem}
-              currency={currency} total={total} adv={adv} gst={gst} grand={grand} advPct={advPct} gstPct={gstPct}
-              warnings={warnings} applyTemplate={applyTemplate}
-              watermark={watermark} setWatermark={setWatermark}
-              newAgreement={newAgreement}
-              toggles={toggles} handleToggleChange={handleToggleChange}
-              sigMode={sigMode} setSigMode={setSigMode}
-              versionHistory={versionHistory}
-              savedAgreements={savedAgreements} fetchAgreementById={fetchAgreementById}
-            />
+            {!isClientMode && (
+              <Sidebar 
+                activeTab={activeTab} setActiveTab={setActiveTab}
+                formData={formData} handleInputChange={handleInputChange}
+                scopeItems={scopeItems} updateScopeItem={updateScopeItem} removeScopeItem={removeScopeItem} addScopeItem={addScopeItem}
+                currency={currency} total={total} adv={adv} gst={gst} grand={grand} advPct={advPct} gstPct={gstPct}
+                warnings={warnings} applyTemplate={applyTemplate}
+                watermark={watermark} setWatermark={setWatermark}
+                newAgreement={newAgreement}
+                toggles={toggles} handleToggleChange={handleToggleChange}
+                sigMode={sigMode} setSigMode={setSigMode}
+                versionHistory={versionHistory}
+                savedAgreements={savedAgreements} fetchAgreementById={fetchAgreementById}
+              />
+            )}
             <Preview 
               formData={formData} toggles={toggles} watermark={watermark}
               approvalStatus={approvalStatus} agreementId={agreementId} dateStr={dateStr}

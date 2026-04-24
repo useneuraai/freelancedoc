@@ -115,6 +115,13 @@ const Preview = ({
             <p>Revisions: {formData.revisions} rounds included.</p>
           </div>
 
+          {toggles.client && (
+            <div className="doc-section">
+              <div className="doc-section-title">Client Responsibilities</div>
+              <p>{formData.clientResponsibilities || 'The Client shall provide necessary feedback, approvals, and assets required for the project in a timely manner.'}</p>
+            </div>
+          )}
+
           {toggles.warranty && (
             <div className="doc-section">
               <div className="doc-section-title">Warranty & Support</div>
@@ -133,6 +140,34 @@ const Preview = ({
             <div className="doc-section">
               <div className="doc-section-title">Limitation of Liability</div>
               <p>The Service Provider's total liability under this agreement is limited to the total amount paid by the Client.</p>
+            </div>
+          )}
+
+          {toggles.nda && (
+            <div className="doc-section">
+              <div className="doc-section-title">Confidentiality (NDA)</div>
+              <p>Both parties agree to maintain the confidentiality of any proprietary information shared during the course of this project.</p>
+            </div>
+          )}
+
+          {toggles.cancellation && (
+            <div className="doc-section">
+              <div className="doc-section-title">Termination & Cancellation</div>
+              <p>{formData.cancellation || 'Either party may terminate the Agreement with 7 days written notice. Client shall pay for work completed up to the date of termination.'}</p>
+            </div>
+          )}
+
+          {toggles.dispute && (
+            <div className="doc-section">
+              <div className="doc-section-title">Governing Law & Dispute Resolution</div>
+              <p>This Agreement shall be governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the courts in the Service Provider's location.</p>
+            </div>
+          )}
+
+          {toggles.force && (
+            <div className="doc-section">
+              <div className="doc-section-title">Force Majeure</div>
+              <p>Neither party shall be liable for failure to perform its obligations if such failure results from circumstances beyond their reasonable control (e.g., natural disasters, pandemics, government restrictions).</p>
             </div>
           )}
 
