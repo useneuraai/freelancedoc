@@ -6,7 +6,8 @@ const Auth = ({
   setAuthEmail,
   authPass,
   setAuthPass,
-  isAuthLoading
+  isAuthLoading,
+  handleContinueOffline
 }) => {
   return (
     <div className="auth-screen">
@@ -29,6 +30,9 @@ const Auth = ({
             {isAuthLoading ? 'Authenticating...' : 'Sign In / Sign Up'}
           </button>
         </form>
+        <button type="button" className="auth-btn-secondary" onClick={handleContinueOffline}>
+          🔌 Continue Offline (Local Storage)
+        </button>
         <div className="auth-footer">
           <p>New users are registered automatically.</p>
           <div style={{ marginTop: '12px', fontSize: '11px', opacity: 0.6 }}>© 2026 FreelanceDoc — Professional Agreement System</div>

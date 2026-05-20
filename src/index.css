@@ -342,3 +342,39 @@ body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
 .dark-theme .auth-footer {
   border-top-color: rgba(255,255,255,0.05);
 }
+
+.auth-btn-secondary {
+  width: 100%;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 12px;
+  background: transparent;
+  color: #2d5a4e;
+  border: 2px solid #2d5a4e;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-btn-secondary:hover {
+  background: rgba(45, 90, 78, 0.05);
+  transform: translateY(-2px);
+}
+
+.auth-btn-secondary:active {
+  transform: translateY(0);
+}
+
+[data-theme="dark"] .auth-btn-secondary {
+  color: #5cb8a0;
+  border-color: #5cb8a0;
+}
+
+[data-theme="dark"] .auth-btn-secondary:hover {
+  background: rgba(92, 184, 160, 0.05);
+}

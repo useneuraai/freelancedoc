@@ -84,23 +84,43 @@ function App() {
 
   useEffect(() => {
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) fetchAgreements();
-      setIsInitializingAuth(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+        if (session?.user) fetchAgreements();
+      } catch (error) {
+        console.error("Failed to initialize Supabase auth:", error);
+        addToast("⚠ Supabase connection failed. Running in Local Mode.");
+      } finally {
+        setIsInitializingAuth(false);
+      }
     };
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchAgreements();
-        fetchProfile();
-      }
-      setIsInitializingAuth(false);
-    });
+    let subscription;
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchAgreements();
+          fetchProfile();
+        }
+        setIsInitializingAuth(false);
+      });
+      subscription = data?.subscription;
+    } catch (error) {
+      console.error("Failed to subscribe to auth changes:", error);
+    }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch (e) {
+          console.error("Failed to unsubscribe:", e);
+        }
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -116,32 +136,43 @@ function App() {
   // REALTIME SYNC: Listen for updates to this specific agreement
   useEffect(() => {
     if (agreementId) {
-      const channel = supabase
-        .channel(`agreement-${agreementId}`)
-        .on('postgres_changes', { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'agreements',
-          filter: `agreement_id=eq.${agreementId}`
-        }, (payload) => {
-          // Update view immediately for both freelancer and client
-          loadAgreementFromData(payload.new);
-          
-          if (isClientMode) {
-            // No extra toast needed for client usually
-          } else {
-            // Refresh the sidebar list for freelancer
-            fetchAgreements();
+      let channel;
+      try {
+        channel = supabase
+          .channel(`agreement-${agreementId}`)
+          .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'agreements',
+            filter: `agreement_id=eq.${agreementId}`
+          }, (payload) => {
+            // Update view immediately for both freelancer and client
+            loadAgreementFromData(payload.new);
             
-            if (payload.new.status === 'accepted') {
-              addToast('🎉 Client just accepted the agreement!');
+            if (isClientMode) {
+              // No extra toast needed for client usually
+            } else {
+              // Refresh the sidebar list for freelancer
+              fetchAgreements();
+              
+              if (payload.new.status === 'accepted') {
+                addToast('🎉 Client just accepted the agreement!');
+              }
             }
-          }
-        })
-        .subscribe();
+          })
+          .subscribe();
+      } catch (err) {
+        console.error("Failed to establish real-time sync channel:", err);
+      }
       
       return () => {
-        supabase.removeChannel(channel);
+        if (channel) {
+          try {
+            supabase.removeChannel(channel);
+          } catch (err) {
+            console.error("Failed to remove channel:", err);
+          }
+        }
       };
     }
   }, [agreementId, isClientMode]);
@@ -214,51 +245,99 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsAuthLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPass });
-    if (error) {
-      const { data: sData, error: sError } = await supabase.auth.signUp({ email: authEmail, password: authPass });
-      if (sError) addToast('✕ Auth failed: ' + sError.message);
-      else {
-        addToast('✓ Account created! Welcome.');
-        setUser(sData.user);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPass });
+      if (error) {
+        const { data: sData, error: sError } = await supabase.auth.signUp({ email: authEmail, password: authPass });
+        if (sError) addToast('✕ Auth failed: ' + sError.message);
+        else {
+          addToast('✓ Account created! Welcome.');
+          setUser(sData.user);
+        }
+      } else {
+        addToast('✓ Logged in successfully');
+        setUser(data.user);
       }
-    } else {
-      addToast('✓ Logged in successfully');
-      setUser(data.user);
+    } catch (err) {
+      console.error(err);
+      addToast('✕ Connection failed: Could not connect to authentication server.');
+    } finally {
+      setIsAuthLoading(false);
     }
-    setIsAuthLoading(false);
+  };
+
+  const handleContinueOffline = () => {
+    const guestUser = {
+      email: 'local-guest@freelancedoc.local',
+      id: 'local-guest',
+      isAnonymous: true
+    };
+    setUser(guestUser);
+    addToast('🔌 Connected to Local Mode');
+    try {
+      const localList = JSON.parse(localStorage.getItem('fd_local_agreements') || '[]');
+      setSavedAgreements(localList.map(transformFromDb));
+    } catch (e) {
+      console.error("Failed to load local agreements:", e);
+    }
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      if (user && !user.isAnonymous) {
+        await supabase.auth.signOut();
+      }
+    } catch (e) {
+      console.error("Error signing out:", e);
+    }
     setUser(null);
     setSavedAgreements([]);
     addToast('Logged out');
   };
 
   const fetchProfile = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (!error && data) {
-      setFormData(prev => ({
-        ...prev,
-        freelancerName: data.freelancer_name || prev.freelancerName,
-        freelancerUpi: data.freelancer_upi || prev.freelancerUpi
-      }));
+    if (!user || user.isAnonymous) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      if (!error && data) {
+        setFormData(prev => ({
+          ...prev,
+          freelancerName: data.freelancer_name || prev.freelancerName,
+          freelancerUpi: data.freelancer_upi || prev.freelancerUpi
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch profile:", err);
     }
   };
 
   const fetchAgreements = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    const { data, error } = await supabase.from('agreements').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-    if (!error && data) setSavedAgreements(data.map(transformFromDb));
+    if (!user) return;
+    if (user.isAnonymous) {
+      try {
+        const localList = JSON.parse(localStorage.getItem('fd_local_agreements') || '[]');
+        setSavedAgreements(localList.map(transformFromDb));
+      } catch (e) {
+        console.error("Failed to load local agreements:", e);
+      }
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const { data, error } = await supabase.from('agreements').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
+      if (!error && data) setSavedAgreements(data.map(transformFromDb));
+    } catch (err) {
+      console.error("Failed to fetch agreements:", err);
+      addToast("⚠ Failed to load saved cloud agreements.");
+    }
   };
 
   const transformFromDb = (d) => ({
     id: d.agreement_id,
-    date: new Date(d.created_at).toLocaleDateString('en-IN'),
+    date: new Date(d.created_at || new Date()).toLocaleDateString('en-IN'),
     client: d.client_name,
     title: d.project_title,
     status: d.status
@@ -266,10 +345,10 @@ function App() {
 
   const saveAgreement = async (silent = false) => {
     if (!user) {
-      if (!silent) addToast('Please login to save to cloud');
+      if (!silent) addToast('Please login to save');
       return false;
     }
-    if (!silent) addToast('Saving to cloud...');
+    if (!silent) addToast(user.isAnonymous ? 'Saving locally...' : 'Saving to cloud...');
     const dbData = {
       agreement_id: agreementId,
       user_id: user.id,
@@ -286,31 +365,81 @@ function App() {
       form_data: formData,
       scope_items: scopeItems,
       toggles: toggles,
+      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    const { error } = await supabase.from('agreements').upsert(dbData, { onConflict: 'agreement_id' });
-    if (!error) {
-      if (!silent) addToast('💾 Saved to Supabase');
-      if (user) {
-        await supabase.from('profiles').upsert({ id: user.id, freelancer_name: formData.freelancerName, freelancer_upi: formData.freelancerUpi, updated_at: new Date().toISOString() });
+
+    if (user.isAnonymous) {
+      try {
+        const localList = JSON.parse(localStorage.getItem('fd_local_agreements') || '[]');
+        const existingIdx = localList.findIndex(item => item.agreement_id === agreementId);
+        if (existingIdx > -1) {
+          dbData.created_at = localList[existingIdx].created_at || dbData.created_at;
+          localList[existingIdx] = dbData;
+        } else {
+          localList.unshift(dbData);
+        }
+        localStorage.setItem('fd_local_agreements', JSON.stringify(localList));
+        if (!silent) addToast('💾 Saved locally (Offline)');
+        bumpVersion('Local Saved');
+        fetchAgreements();
+        return true;
+      } catch (e) {
+        if (!silent) addToast('✕ Save failed: ' + e.message);
+        return false;
       }
-      bumpVersion('Cloud Saved');
-      fetchAgreements();
-      return true;
-    } else {
-      if (!silent) addToast('✕ Save failed: ' + error.message);
+    }
+
+    try {
+      const { error } = await supabase.from('agreements').upsert(dbData, { onConflict: 'agreement_id' });
+      if (!error) {
+        if (!silent) addToast('💾 Saved to Supabase');
+        if (user) {
+          await supabase.from('profiles').upsert({ id: user.id, freelancer_name: formData.freelancerName, freelancer_upi: formData.freelancerUpi, updated_at: new Date().toISOString() });
+        }
+        bumpVersion('Cloud Saved');
+        fetchAgreements();
+        return true;
+      } else {
+        if (!silent) addToast('✕ Save failed: ' + error.message);
+        return false;
+      }
+    } catch (err) {
+      console.error(err);
+      if (!silent) addToast('✕ Save failed: Connection error');
       return false;
     }
   };
 
   const fetchAgreementById = async (id) => {
+    if (user?.isAnonymous) {
+      try {
+        const localList = JSON.parse(localStorage.getItem('fd_local_agreements') || '[]');
+        const agreement = localList.find(item => item.agreement_id === id);
+        if (agreement) {
+          loadAgreementFromData(agreement);
+          addToast('✓ Local agreement loaded');
+        } else {
+          addToast('✕ Agreement not found locally');
+        }
+      } catch (e) {
+        addToast('✕ Failed to load local agreement');
+      }
+      return;
+    }
+
     addToast('Fetching agreement...');
-    const { data, error } = await supabase.from('agreements').select('*').eq('agreement_id', id).single();
-    if (!error && data) {
-      loadAgreementFromData(data);
-      addToast('✓ Agreement loaded');
-    } else {
-      addToast('✕ Agreement not found');
+    try {
+      const { data, error } = await supabase.from('agreements').select('*').eq('agreement_id', id).single();
+      if (!error && data) {
+        loadAgreementFromData(data);
+        addToast('✓ Agreement loaded');
+      } else {
+        addToast('✕ Agreement not found');
+      }
+    } catch (err) {
+      console.error(err);
+      addToast('✕ Connection error: Failed to fetch agreement');
     }
   };
 
@@ -374,14 +503,19 @@ function App() {
   };
 
   const clientAction = async (status) => {
-    const { error } = await supabase.from('agreements').update({ status, signed_date: status === 'accepted' ? new Date().toISOString() : null }).eq('agreement_id', agreementId);
-    if (!error) {
-      setApprovalStatus(status);
-      if (status === 'accepted') {
-        setSignedDate(new Date().toISOString());
-        addToast('✓ Agreement Accepted & Signed!');
-      } else addToast('Agreement Rejected');
-    } else addToast('✕ Action failed: ' + error.message);
+    try {
+      const { error } = await supabase.from('agreements').update({ status, signed_date: status === 'accepted' ? new Date().toISOString() : null }).eq('agreement_id', agreementId);
+      if (!error) {
+        setApprovalStatus(status);
+        if (status === 'accepted') {
+          setSignedDate(new Date().toISOString());
+          addToast('✓ Agreement Accepted & Signed!');
+        } else addToast('Agreement Rejected');
+      } else addToast('✕ Action failed: ' + error.message);
+    } catch (err) {
+      console.error(err);
+      addToast('✕ Connection error: Failed to perform action');
+    }
   };
 
   const startDrawing = (e) => {
@@ -440,6 +574,7 @@ function App() {
           authEmail={authEmail} setAuthEmail={setAuthEmail}
           authPass={authPass} setAuthPass={setAuthPass}
           isAuthLoading={isAuthLoading}
+          handleContinueOffline={handleContinueOffline}
         />
       ) : (
         <>
@@ -483,6 +618,7 @@ function App() {
                 sigMode={sigMode} setSigMode={setSigMode}
                 versionHistory={versionHistory}
                 savedAgreements={savedAgreements} fetchAgreementById={fetchAgreementById}
+                user={user}
               />
             )}
             <Preview 

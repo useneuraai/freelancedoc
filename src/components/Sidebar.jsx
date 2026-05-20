@@ -28,7 +28,8 @@ const Sidebar = ({
   setSigMode,
   versionHistory,
   savedAgreements,
-  fetchAgreementById
+  fetchAgreementById,
+  user
 }) => {
   return (
     <div className="sidebar">
@@ -184,14 +185,24 @@ const Sidebar = ({
 
       {/* DASHBOARD PANEL */}
       <div className={`sidebar-panel ${activeTab === 'dashboard' ? 'active' : ''}`}>
-        <div className="section-heading">Saved Agreements (Cloud)</div>
+        <div className="section-heading">
+          {user?.isAnonymous ? 'Saved Agreements (Offline)' : 'Saved Agreements (Cloud)'}
+        </div>
         <div className="saved-list">
           {savedAgreements.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text3)' }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px' }}>☁</div>
-              <p>No cloud agreements found.</p>
-              <p style={{ fontSize: '11px', marginTop: '8px' }}>Log in and save to see them here.</p>
-            </div>
+            user?.isAnonymous ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text3)' }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔌</div>
+                <p>No offline agreements found.</p>
+                <p style={{ fontSize: '11px', marginTop: '8px' }}>Click "Save" to store your drafts in this browser.</p>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text3)' }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>☁</div>
+                <p>No cloud agreements found.</p>
+                <p style={{ fontSize: '11px', marginTop: '8px' }}>Log in and save to see them here.</p>
+              </div>
+            )
           ) : (
             savedAgreements.map(arg => (
               <div key={arg.id} className="saved-item" onClick={() => fetchAgreementById(arg.id)}>
